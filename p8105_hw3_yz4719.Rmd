@@ -176,5 +176,71 @@ first, load and clean the data.
 ```{r}
 nhanes_covar = 
   read_csv("dataset/nhanes_covar.csv", skip = 4)|>
-  janitor::clean_names()
+  janitor::clean_names()|>
+  mutate(
+    sex = recode(sex, "1" = "male", "2" = "female"),
+    education = recode(education, "1" = "Less than high school", "2" = "High school equivalent", "3" = "More than high school"), 
+    sex = factor(sex), 
+    education = factor(education))|>
+  drop_na()|>
+  filter(age >= 21)
+nhanes_covar
+
+nhanes_accel = 
+  read_csv("dataset/nhanes_accel.csv")|>
+  janitor::clean_names()|>
+  pivot_longer(cols = starts_with("min"),
+    names_to = "minute",
+    values_to = "activity",
+    names_prefix = "min"
+  ) |> 
+  mutate(minute=as.numeric(minute))
+nhanes_accel
 ```
+
+merge data
+```{r}
+nhances_all =
+  left_join(nhanes_covar, nhanes_accel, by = "seqn")
+nhances_all
+```
+
+**Produce a reader-friendly table for the number of men and women in each education category, and create a visualization of the age distributions for men and women in each education category.**
+
+```{r}
+sex_education = nhances_all |> 
+  group_by(sex,education) |> 
+  summarize(count = n())|> 
+  pivot_wider(
+    names_from = sex,
+    values_from = count
+  ) |> 
+  kable()
+sex_education
+```
+
+From the table we could see that there are more male fulfill high school equivalent while the other two level of education seems more equal.
+
+**Visualization of the Age Distributions for Men and Women in each Education **
+```{r}
+sex_education_age = 
+  nhances_all |>
+  group_by(sex,education) |> 
+  summarize(mean_age = mean(age, na.rm = TRUE))
+sex_education_age
+
+sex_education_age_plot =
+  nhances_all |>
+  ggplot(aes(x = age, fill = sex))+
+  geom_density()+
+  facet_grid(. ~ education) +
+  theme_minimal() +
+  labs(title = "Distribution of age among Men and Women in each Education Category", 
+       x = "Age in years",
+       y = "density ")
+sex_education_age_plot
+```
+
+It is showed that among more than high school degree of education level, there are more younger female, and among high school degree of education level, there are more elder female and younger males.
+
+
