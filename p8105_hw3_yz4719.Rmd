@@ -1,0 +1,180 @@
+---
+title: "p8105_hw3_yz4719"
+author: "Yuxin Zhang"
+date: "2023-10-14"
+output: github_document
+---
+
+
+```{r load basic library} 
+library(tidyverse)
+library(ggridges)
+library(patchwork)
+library(p8105.datasets)
+library(knitr)
+```
+
+### Problem 1
+
+#### Read in the data
+
+```{r}
+data("instacart")
+
+instacart = 
+  instacart |> 
+  as_tibble()
+```
+
+#### Answer questions about the data
+
+This dataset contains `r nrow(instacart)` rows and `r ncol(instacart)` columns, with each row resprenting a single product from an instacart order. Variables include identifiers for user, order, and product; the order in which each product was added to the cart. There are several order-level variables, describing the day and time of the order, and number of days since prior order. Then there are several item-specific variables, describing the product name (e.g. Yogurt, Avocado), department (e.g. dairy and eggs, produce), and aisle (e.g. yogurt, fresh fruits), and whether the item has been ordered by this user in the past. In total, there are `r instacart |> select(product_id) |> distinct() |> count()` products found in `r instacart |> select(user_id, order_id) |> distinct() |> count()` orders from `r instacart |> select(user_id) |> distinct() |> count()` distinct users.
+
+Below is a table summarizing the number of items ordered from aisle. In total, there are 134 aisles, with fresh vegetables and fresh fruits holding the most items ordered by far.
+
+```{r}
+instacart |> 
+  count(aisle) |> 
+  arrange(desc(n))
+```
+
+Next is a plot that shows the number of items ordered in each aisle. Here, aisles are ordered by ascending number of items.
+
+```{r}
+instacart |> 
+  count(aisle) |> 
+  filter(n > 10000) |> 
+  mutate(aisle = fct_reorder(aisle, n)) |> 
+  ggplot(aes(x = aisle, y = n)) + 
+  geom_point() + 
+  labs(title = "Number of items ordered in each aisle") +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+```
+
+Our next table shows the three most popular items in aisles `baking ingredients`, `dog food care`, and `packaged vegetables fruits`, and includes the number of times each item is ordered in your table.
+
+```{r}
+instacart |> 
+  filter(aisle %in% c("baking ingredients", "dog food care", "packaged vegetables fruits")) |>
+  group_by(aisle) |> 
+  count(product_name) |> 
+  mutate(rank = min_rank(desc(n))) |> 
+  filter(rank < 4) |> 
+  arrange(desc(n)) |>
+  knitr::kable()
+```
+
+Finally is a table showing the mean hour of the day at which Pink Lady Apples and Coffee Ice Cream are ordered on each day of the week. This table has been formatted in an untidy manner for human readers. Pink Lady Apples are generally purchased slightly earlier in the day than Coffee Ice Cream, with the exception of day 5.
+
+```{r}
+instacart |>
+  filter(product_name %in% c("Pink Lady Apples", "Coffee Ice Cream")) |>
+  group_by(product_name, order_dow) |>
+  summarize(mean_hour = mean(order_hour_of_day)) |>
+  pivot_wider(
+    names_from = order_dow, 
+    values_from = mean_hour) |>
+  knitr::kable(digits = 2)
+```
+
+## Problem 2
+
+first, load and clean the data.
+```{r}
+
+data("brfss_smart2010")
+
+clean_brfss = brfss_smart2010 |>
+  # format the data to use appropriate variable names
+  janitor::clean_names()|>
+  
+  # focus on the “Overall Health” topic
+  filter(topic == "Overall Health")|>
+  
+  # include only responses from “Excellent” to “Poor”
+ filter(response == "Excellent" | response == "Very good" | response == "Good"|response == "Fair"|response == "Poor") |>
+  mutate(response=factor(response, level=c("Poor","Fair","Good","Very good","Excellent")))
+clean_brfss
+```
+
+**In 2002, which states were observed at 7 or more locations? What about in 2010?**
+
+```{r}
+brfss_2002=
+  clean_brfss|>
+  filter(year==2002) |>
+  group_by(locationabbr) |>
+  summarize(n_location=n_distinct(locationdesc))|>
+  filter(n_location >= 7)|>
+  arrange(desc(n_location))|>
+  pivot_wider(
+  names_from = locationabbr,
+  values_from = n_location)
+brfss_2002
+```
+
+In 2002 there are 6 states observed at 7 or more locations, they are `r names(brfss_2002)`.
+
+```{r}
+brfss_2010=
+  clean_brfss|>
+  filter(year==2010) |>
+  group_by(locationabbr) |>
+  summarize(n_location=n_distinct(locationdesc))|>
+  filter(n_location >= 7)|>
+  arrange(desc(n_location))|>
+  pivot_wider(
+  names_from = locationabbr,
+  values_from = n_location)
+brfss_2010
+```
+
+In 2010 there are 14 states observed at 7 or more locations, they are `r names(brfss_2010)`.
+
+
+**Construct a dataset that is limited to Excellent responses, and contains, year, state, and a variable that averages the data_value across locations within a state. Make a “spaghetti” plot of this average value over time within a state (that is, make a plot showing a line for each state across years – the geom_line geometry and group aesthetic will help).**
+
+```{r}
+excellent_responses = clean_brfss|>
+  filter(response == "Excellent")|>
+  group_by(year, locationabbr)|>
+  summarize(mean_value = mean(data_value, na.rm = TRUE))
+
+excellent_responses_plot = excellent_responses|>
+  ggplot(aes(x = year, y = mean_value, color=state))+
+  geom_line(aes(color = locationabbr))+
+  labs(title = "Average Value of 'Excellent' Health Responses in a State Over Time") 
+excellent_responses_plot
+```
+
+The“spaghetti” plot shows the average value of "excellent" health response over time on a scale of years within a state. Different colors represent different states, and as it shows above, most state has value of excellent response inbetween 15-30. 
+
+
+**Make a two-panel plot showing, for the years 2006, and 2010, distribution of data_value for responses (“Poor” to “Excellent”) among locations in NY State.**
+
+```{r}
+NY_distribution = clean_brfss|>
+  filter(locationabbr == "NY")|>
+  filter(year == 2006 | year == 2010)
+
+NY_distribution_plot= NY_distribution|>
+  ggplot(aes(x = response, y = data_value,fill=response)) + 
+  geom_boxplot()+
+  facet_grid(. ~ year)+
+  labs(title = "Distribution of Data Value of Health Responses among NY in Year 2006 and 2010")+
+  theme_minimal()
+NY_distribution_plot
+```
+
+This two-panel box plot shows the distribution of data value of health response in the year of 2006 and 2010 in NY. It show as that there are some increases in the data from 2006 to 2010.
+
+
+## Problem 3
+
+first, load and clean the data.
+```{r}
+nhanes_covar = 
+  read_csv("dataset/nhanes_covar.csv", skip = 4)|>
+  janitor::clean_names()
+```
