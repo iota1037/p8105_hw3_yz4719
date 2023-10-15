@@ -244,3 +244,25 @@ sex_education_age_plot
 It is showed that among more than high school degree of education level, there are more younger female, and among high school degree of education level, there are more elder female and younger males.
 
 
+**aggregate across minutes to create a total activity variable for each participant**
+
+```{r}
+aggregated_df= 
+  nhances_all |> 
+ mutate(total_activity = rowSums(select(nhances_all, ("activity"))))
+
+aggregated_plot = aggregated_df|> 
+  ggplot(aes(x=age, y=total_activity,color=sex))+
+  geom_point(alpha=0.8)+
+  geom_smooth() +
+  facet_grid(.~education)+
+  labs(title = "Distirbutrion of Total Activities Among Ages and sex in  Education Category",
+       x= "Age",
+       y= "total_activity")
+
+aggregated_plot
+
+```
+
+As age increases, the total activities decrease. In general we can see that females shows higher activity compare to male,  excepted when in less than high school category, men have more activities than women when their age reaches more than 40.
+
