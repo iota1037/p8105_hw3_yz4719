@@ -261,7 +261,6 @@ aggregated_plot = aggregated_df|>
        y= "total_activity")
 
 aggregated_plot
-
 ```
 
 As age increases, the total activities decrease. In general we can see that females shows higher activity compare to male,  excepted when in less than high school category, men have more activities than women when their age reaches more than 40.
